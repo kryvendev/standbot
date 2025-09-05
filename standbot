@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LP = Players.LocalPlayer
 
 local OwnerId = getgenv().OwnerId or 0
@@ -75,7 +76,7 @@ task.delay(5, function() ScreenGui:Destroy() end)
 --// ========= VARIABLES ========= \\--
 local Whitelist = { [OwnerId] = true }
 local ChatLogsVisible = false
-local FollowingConnection, AutoConnection
+local FollowingConnection, AutoConnection, HideConnection, DropConnection
 
 -- ChatLogs GUI
 local ChatGui = Instance.new("ScreenGui")
@@ -185,9 +186,17 @@ local function forceResetAndReturn()
     end
 end
 
+-- Stop everything
+local function stopAll()
+    if AutoConnection then AutoConnection:Disconnect() AutoConnection = nil end
+    if FollowingConnection then FollowingConnection:Disconnect() FollowingConnection = nil end
+    if HideConnection then HideConnection:Disconnect() HideConnection = nil end
+    if DropConnection then DropConnection:Disconnect() DropConnection = nil end
+end
+
 -- Auto strafe
 local function autoStrafe(target)
-    if AutoConnection then AutoConnection:Disconnect() end
+    stopAll()
     local char = LP.Character or LP.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -195,16 +204,16 @@ local function autoStrafe(target)
     local startTime = tick()
 
     AutoConnection = RunService.Heartbeat:Connect(function()
-        if not target or not target.Parent then AutoConnection:Disconnect() return end
+        if not target or not target.Parent then stopAll() return end
         local targetChar = target.Character
         local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
         local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
         if not targetChar or not targetHRP or not targetHum then return end
-        if targetHum.Health <= 0 then AutoConnection:Disconnect() return end
-        if tick() - startTime >= BotSettings.StrafeDuration then AutoConnection:Disconnect() return end
+        if targetHum.Health <= 0 then stopAll() return end
+        if tick() - startTime >= BotSettings.StrafeDuration then stopAll() return end
 
         if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
-            AutoConnection:Disconnect()
+            stopAll()
             forceResetAndReturn()
             return
         end
@@ -219,7 +228,7 @@ end
 
 -- Follow system
 local function followPlayer(target, mode)
-    if FollowingConnection then FollowingConnection:Disconnect() end
+    stopAll()
     local char = LP.Character or LP.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = getHumanoid()
@@ -241,21 +250,43 @@ local function followPlayer(target, mode)
         if not targetHRP or not targetHum then return end
 
         if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
-            FollowingConnection:Disconnect()
+            stopAll()
             forceResetAndReturn()
             return
         end
 
         local dir = targetHRP.CFrame.LookVector
         local right = targetHRP.CFrame.RightVector
-        local pos = targetHRP.Position + dir * offset.Z + right * offset.X + Vector3.new(0, offset.Y, 0)
+        local pos = targetHRP.Position + dir * offset.Z + right * offset.X
         hum:MoveTo(pos)
         hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
     end)
 end
 
-local function unfollow()
-    if FollowingConnection then FollowingConnection:Disconnect() FollowingConnection = nil end
+-- Hide system
+local function hideBot()
+    stopAll()
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    HideConnection = RunService.Heartbeat:Connect(function()
+        hrp.CFrame = CFrame.new(
+            math.random(-50, 50),
+            30 + math.random(0, 10),
+            math.random(-50, 50)
+        )
+        task.wait(0.1)
+    end)
+end
+
+-- Auto drop system
+local function autoDrop()
+    stopAll()
+    local args = { "DropMoney", "15000" }
+    DropConnection = RunService.Heartbeat:Connect(function()
+        ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
+        task.wait(0.5)
+    end)
 end
 
 --// ========= CHAT LISTENER ========= \\--
@@ -316,11 +347,17 @@ TextChatService.OnIncomingMessage = function(message)
         elseif arg == "right" then followPlayer(sender, "right")
         else followPlayer(sender, "behind") end
     elseif txt == "unfollow!" then
-        unfollow()
+        stopAll()
     elseif txt == "chatlogs!" then
         ChatLogsVisible = not ChatLogsVisible
         ChatFrame.Visible = ChatLogsVisible
     elseif txt == "cmds!" then
-        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
+        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!, autodrop!, hide!, stop!")
+    elseif txt == "autodrop!" then
+        autoDrop()
+    elseif txt == "hide!" then
+        hideBot()
+    elseif txt == "stop!" then
+        stopAll()
     end
 end
