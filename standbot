@@ -1,51 +1,110 @@
--- StandBot (WaveAI) — Main Script
--- Repo: https://github.com/kryvendev/standbot
+--// Nervox Stand Bot
+--// Made by kryvendev
 
+--// ========= LOADER GUI ========= \\--
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local TextChatService = game:GetService("TextChatService")
+local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
 local LP = Players.LocalPlayer
 
--- Owner and settings come from getgenv()
 local OwnerId = getgenv().OwnerId or 0
 local BotSettings = getgenv().BotSettings or {}
 
-local Whitelist = { [OwnerId] = true }
-local ChatLogsVisible = false
-local FollowingConnection = nil
-
--- ChatLogs GUI
+-- Loader UI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ChatLogGui"
+ScreenGui.Name = "NervoxLoader"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0.4, 0, 0.4, 0)
-Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.BackgroundTransparency = 0.2
-Frame.Active = true
-Frame.Draggable = true
-Frame.Visible = false
+Frame.Size = UDim2.new(0, 250, 0, 120)
+Frame.Position = UDim2.new(0.5, -125, 0.1, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Frame.BorderSizePixel = 0
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
 
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 8)
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 25)
+Title.BackgroundTransparency = 1
+Title.Text = "Ready | Executed"
+Title.TextColor3 = Color3.fromRGB(0,255,0)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
 
-local Scrolling = Instance.new("ScrollingFrame", Frame)
+local Avatar = Instance.new("ImageLabel", Frame)
+Avatar.Size = UDim2.new(0, 70, 0, 70)
+Avatar.Position = UDim2.new(0, 10, 0, 35)
+Avatar.BackgroundTransparency = 1
+local thumb, _ = Players:GetUserThumbnailAsync(OwnerId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+Avatar.Image = thumb
+
+local Owner = Players:GetPlayerByUserId(OwnerId)
+local Welcome = Instance.new("TextLabel", Frame)
+Welcome.Size = UDim2.new(1, -90, 0, 20)
+Welcome.Position = UDim2.new(0, 90, 0, 40)
+Welcome.BackgroundTransparency = 1
+Welcome.TextXAlignment = Enum.TextXAlignment.Left
+Welcome.TextColor3 = Color3.new(1,1,1)
+Welcome.Font = Enum.Font.SourceSansSemibold
+Welcome.TextSize = 18
+Welcome.Text = "Welcome: " .. (Owner and Owner.DisplayName or "Unknown")
+
+local ScriptName = Instance.new("TextLabel", Frame)
+ScriptName.Size = UDim2.new(1, -90, 0, 20)
+ScriptName.Position = UDim2.new(0, 90, 0, 65)
+ScriptName.BackgroundTransparency = 1
+ScriptName.TextXAlignment = Enum.TextXAlignment.Left
+ScriptName.TextColor3 = Color3.fromRGB(200,200,200)
+ScriptName.Font = Enum.Font.SourceSans
+ScriptName.TextSize = 16
+ScriptName.Text = "Nervox Stand Bot"
+
+local Credit = Instance.new("TextLabel", Frame)
+Credit.Size = UDim2.new(1, -10, 0, 20)
+Credit.Position = UDim2.new(0, 5, 1, -22)
+Credit.BackgroundTransparency = 1
+Credit.TextXAlignment = Enum.TextXAlignment.Right
+Credit.TextColor3 = Color3.fromRGB(180,180,180)
+Credit.Font = Enum.Font.SourceSansItalic
+Credit.TextSize = 14
+Credit.Text = "Made by kryvendev"
+
+task.delay(5, function() ScreenGui:Destroy() end)
+
+--// ========= VARIABLES ========= \\--
+local Whitelist = { [OwnerId] = true }
+local ChatLogsVisible = false
+local FollowingConnection, AutoConnection
+
+-- ChatLogs GUI
+local ChatGui = Instance.new("ScreenGui")
+ChatGui.Name = "ChatLogGui"
+ChatGui.ResetOnSpawn = false
+ChatGui.Parent = game:GetService("CoreGui")
+
+local ChatFrame = Instance.new("Frame", ChatGui)
+ChatFrame.Size = UDim2.new(0.4, 0, 0.4, 0)
+ChatFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+ChatFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+ChatFrame.BackgroundTransparency = 0.2
+ChatFrame.Active = true
+ChatFrame.Draggable = true
+ChatFrame.Visible = false
+Instance.new("UICorner", ChatFrame).CornerRadius = UDim.new(0, 8)
+
+local Scrolling = Instance.new("ScrollingFrame", ChatFrame)
 Scrolling.Size = UDim2.new(1, -10, 1, -10)
 Scrolling.Position = UDim2.new(0, 5, 0, 5)
 Scrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 Scrolling.BackgroundTransparency = 1
 Scrolling.ScrollBarThickness = 6
 Scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
 local UIListLayout = Instance.new("UIListLayout", Scrolling)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 2)
 
--- Utility
+--// ========= UTILITIES ========= \\--
 local function addChatLine(text, isOwner)
     local lbl = Instance.new("TextLabel")
     lbl.Parent = Scrolling
@@ -60,9 +119,9 @@ local function addChatLine(text, isOwner)
     Scrolling.CanvasPosition = Vector2.new(0, math.huge)
 end
 
-local function sendChatMessage(msg)
-    local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-    if channel then channel:SendAsync(msg) end
+local function sendChat(msg)
+    local ch = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+    if ch then ch:SendAsync(msg) end
 end
 
 local function getHumanoid()
@@ -74,16 +133,16 @@ local function disableAnimations(char)
     if not BotSettings.DisableAnimations then return end
     local animate = char:FindFirstChild("Animate")
     if animate then animate:Destroy() end
-    for _, anim in pairs(char:GetDescendants()) do
-        if anim:IsA("Animator") then
-            for _, track in pairs(anim:GetPlayingAnimationTracks()) do
+    for _, a in pairs(char:GetDescendants()) do
+        if a:IsA("Animator") then
+            for _, track in pairs(a:GetPlayingAnimationTracks()) do
                 track:Stop()
             end
         end
     end
 end
 
-local function equipToolByName(name)
+local function equipTool(name)
     local hum = getHumanoid()
     if hum then
         local tool = LP.Backpack:FindFirstChild(name)
@@ -97,9 +156,9 @@ local function unequipAll()
 end
 
 local function summonTo(player)
-    if not player or not player.Character then return end
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then (LP.Character or LP.CharacterAdded:Wait()):MoveTo(hrp.Position) end
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        (LP.Character or LP.CharacterAdded:Wait()):MoveTo(player.Character.HumanoidRootPart.Position)
+    end
 end
 
 local function rejoin()
@@ -128,25 +187,24 @@ end
 
 -- Auto strafe
 local function autoStrafe(target)
+    if AutoConnection then AutoConnection:Disconnect() end
     local char = LP.Character or LP.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
     disableAnimations(char)
-
     local startTime = tick()
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        if not target or not target.Parent then connection:Disconnect() return end
+
+    AutoConnection = RunService.Heartbeat:Connect(function()
+        if not target or not target.Parent then AutoConnection:Disconnect() return end
         local targetChar = target.Character
         local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
         local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
         if not targetChar or not targetHRP or not targetHum then return end
-        if targetHum.Health <= 0 then connection:Disconnect() return end
-        if tick() - startTime >= BotSettings.StrafeDuration then connection:Disconnect() return end
+        if targetHum.Health <= 0 then AutoConnection:Disconnect() return end
+        if tick() - startTime >= BotSettings.StrafeDuration then AutoConnection:Disconnect() return end
 
         if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
-            connection:Disconnect()
+            AutoConnection:Disconnect()
             forceResetAndReturn()
             return
         end
@@ -159,7 +217,7 @@ local function autoStrafe(target)
     end)
 end
 
--- Follow system (walk offset)
+-- Follow system
 local function followPlayer(target, mode)
     if FollowingConnection then FollowingConnection:Disconnect() end
     local char = LP.Character or LP.CharacterAdded:Wait()
@@ -173,7 +231,7 @@ local function followPlayer(target, mode)
     elseif mode == "right" then
         offset = Vector3.new(5, 0, 0)
     else
-        offset = Vector3.new(0, 0, -5) -- default behind
+        offset = Vector3.new(0, 0, -5)
     end
 
     FollowingConnection = RunService.Heartbeat:Connect(function()
@@ -190,53 +248,42 @@ local function followPlayer(target, mode)
 
         local dir = targetHRP.CFrame.LookVector
         local right = targetHRP.CFrame.RightVector
-        local pos = targetHRP.Position 
-            + dir * offset.Z 
-            + right * offset.X 
-            + Vector3.new(0, offset.Y, 0)
-
+        local pos = targetHRP.Position + dir * offset.Z + right * offset.X + Vector3.new(0, offset.Y, 0)
         hum:MoveTo(pos)
-        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir) -- face same direction
+        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
     end)
 end
 
 local function unfollow()
-    if FollowingConnection then
-        FollowingConnection:Disconnect()
-        FollowingConnection = nil
-    end
+    if FollowingConnection then FollowingConnection:Disconnect() FollowingConnection = nil end
 end
 
--- Chat listener
+--// ========= CHAT LISTENER ========= \\--
 TextChatService.OnIncomingMessage = function(message)
     local src = message.TextSource
     local sender = src and Players:GetPlayerByUserId(src.UserId)
     local msgText = message.Text or ""
-    if sender then
-        addChatLine(sender.Name .. ": " .. msgText, src.UserId == OwnerId)
-    else
-        addChatLine("[System]: " .. msgText, false)
-    end
+    if sender then addChatLine(sender.Name .. ": " .. msgText, src.UserId == OwnerId)
+    else addChatLine("[System]: " .. msgText, false) end
     if not src then return end
 
     local isOwner = src.UserId == OwnerId
     local allowed = Whitelist[src.UserId]
     local txt = msgText:lower()
 
-    -- Owner-only
+    -- Owner-only commands
     if isOwner and txt:sub(1,10) == "whitelist!" then
         local query = msgText:sub(11):gsub("^%s+", "")
         local target = findPlayerByName(query)
-        if target then Whitelist[target.UserId] = true sendChatMessage("Whitelisted " .. target.Name)
-        else sendChatMessage("Invalid username") end
+        if target then Whitelist[target.UserId] = true sendChat("Whitelisted " .. target.Name)
+        else sendChat("Invalid username") end
         return
     elseif isOwner and txt:sub(1,12) == "unwhitelist!" then
         local query = msgText:sub(13):gsub("^%s+", "")
         local target = findPlayerByName(query)
         if target and target.UserId ~= OwnerId then
-            Whitelist[target.UserId] = nil
-            sendChatMessage("Unwhitelisted " .. target.Name)
-        else sendChatMessage("Invalid username") end
+            Whitelist[target.UserId] = nil sendChat("Unwhitelisted " .. target.Name)
+        else sendChat("Invalid username") end
         return
     elseif isOwner and txt == "checkwl!" then
         local names = {}
@@ -244,7 +291,7 @@ TextChatService.OnIncomingMessage = function(message)
             local plr = Players:GetPlayerByUserId(uid)
             table.insert(names, plr and plr.Name or "UserId:" .. tostring(uid))
         end
-        sendChatMessage("Whitelisted: " .. table.concat(names, ", "))
+        sendChat("Whitelisted: " .. table.concat(names, ", "))
         return
     elseif isOwner and txt == "rj!" then
         rejoin() return
@@ -254,7 +301,7 @@ TextChatService.OnIncomingMessage = function(message)
 
     -- Normal commands
     if txt == "wallet!" then
-        equipToolByName("[Wallet]")
+        equipTool("[Wallet]")
     elseif txt == "unwallet!" then
         unequipAll()
     elseif txt == "summon!" or txt == "s" then
@@ -265,19 +312,15 @@ TextChatService.OnIncomingMessage = function(message)
         if target then autoStrafe(target) end
     elseif txt:sub(1,7) == "follow!" then
         local arg = msgText:sub(9):lower()
-        if arg == "left" then
-            followPlayer(sender, "left")
-        elseif arg == "right" then
-            followPlayer(sender, "right")
-        else
-            followPlayer(sender, "behind")
-        end
+        if arg == "left" then followPlayer(sender, "left")
+        elseif arg == "right" then followPlayer(sender, "right")
+        else followPlayer(sender, "behind") end
     elseif txt == "unfollow!" then
         unfollow()
     elseif txt == "chatlogs!" then
         ChatLogsVisible = not ChatLogsVisible
-        Frame.Visible = ChatLogsVisible
+        ChatFrame.Visible = ChatLogsVisible
     elseif txt == "cmds!" then
-        sendChatMessage("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
+        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
     end
 end
