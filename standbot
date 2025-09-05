@@ -226,7 +226,7 @@ local function autoStrafe(target)
     end)
 end
 
--- Follow system
+-- Follow system (walks 5 studs behind/left/right)
 local function followPlayer(target, mode)
     stopAll()
     local char = LP.Character or LP.CharacterAdded:Wait()
@@ -234,32 +234,27 @@ local function followPlayer(target, mode)
     local hum = getHumanoid()
     disableAnimations(char)
 
-    local offset
-    if mode == "left" then
-        offset = Vector3.new(-5, 0, 0)
-    elseif mode == "right" then
-        offset = Vector3.new(5, 0, 0)
-    else
-        offset = Vector3.new(0, 0, -5)
-    end
-
     FollowingConnection = RunService.Heartbeat:Connect(function()
         if not target or not target.Character then return end
         local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
         local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
         if not targetHRP or not targetHum then return end
-
-        if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
-            stopAll()
-            forceResetAndReturn()
-            return
-        end
+        if targetHum.Health <= 0 then return end
 
         local dir = targetHRP.CFrame.LookVector
         local right = targetHRP.CFrame.RightVector
-        local pos = targetHRP.Position + dir * offset.Z + right * offset.X
-        hum:MoveTo(pos)
-        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
+        local goalPos
+
+        if mode == "left" then
+            goalPos = targetHRP.Position - right * 5
+        elseif mode == "right" then
+            goalPos = targetHRP.Position + right * 5
+        else
+            goalPos = targetHRP.Position - dir * 5
+        end
+
+        hum:MoveTo(goalPos)
+        hrp.CFrame = CFrame.new(hrp.Position, targetHRP.Position)
     end)
 end
 
@@ -279,12 +274,23 @@ local function hideBot()
     end)
 end
 
--- Auto drop system
-local function autoDrop()
+-- Drop cash once
+local function dropCash(amount)
+    amount = tonumber(amount)
+    if not amount then return end
+    if amount > 15000 then amount = 15000 end
+    ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
+end
+
+-- Auto drop loop
+local function autoDrop(amount)
     stopAll()
-    local args = { "DropMoney", "15000" }
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then amount = 15000 end
+    if amount > 15000 then amount = 15000 end
+    sendChat("Autodropping " .. tostring(amount) .. " | say stop! to stop the dropping!")
     DropConnection = RunService.Heartbeat:Connect(function()
-        ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
+        ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
         task.wait(0.5)
     end)
 end
@@ -345,19 +351,21 @@ TextChatService.OnIncomingMessage = function(message)
         local arg = msgText:sub(9):lower()
         if arg == "left" then followPlayer(sender, "left")
         elseif arg == "right" then followPlayer(sender, "right")
-        else followPlayer(sender, "behind") end
-    elseif txt == "unfollow!" then
+        else followPlayer(sender, "back") end
+    elseif txt == "unfollow!" or txt == "stop!" then
         stopAll()
     elseif txt == "chatlogs!" then
         ChatLogsVisible = not ChatLogsVisible
         ChatFrame.Visible = ChatLogsVisible
     elseif txt == "cmds!" then
-        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!, autodrop!, hide!, stop!")
-    elseif txt == "autodrop!" then
-        autoDrop()
+        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [back/left/right], unfollow!/stop!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!, dropcash! <amount>, autodrop! <amount>, hide!")
+    elseif txt:sub(1,9) == "dropcash!" then
+        local amount = msgText:sub(11)
+        dropCash(amount)
+    elseif txt:sub(1,9) == "autodrop!" then
+        local amount = msgText:sub(11)
+        autoDrop(amount)
     elseif txt == "hide!" then
         hideBot()
-    elseif txt == "stop!" then
-        stopAll()
     end
 end
