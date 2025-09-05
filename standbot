@@ -134,9 +134,6 @@ local function autoStrafe(target)
     if not hrp or not hum then return end
     disableAnimations(char)
 
-    hum.PlatformStand = true
-    hum:ChangeState(Enum.HumanoidStateType.Physics)
-
     local startTime = tick()
     local connection
     connection = RunService.Heartbeat:Connect(function()
@@ -162,23 +159,28 @@ local function autoStrafe(target)
     end)
 end
 
--- Follow
-local function followPlayer(target)
+-- Follow system (walk offset)
+local function followPlayer(target, mode)
     if FollowingConnection then FollowingConnection:Disconnect() end
     local char = LP.Character or LP.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = getHumanoid()
-    if hum then
-        hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
-    end
     disableAnimations(char)
+
+    local offset
+    if mode == "left" then
+        offset = Vector3.new(-5, 0, 0)
+    elseif mode == "right" then
+        offset = Vector3.new(5, 0, 0)
+    else
+        offset = Vector3.new(0, 0, -5) -- default behind
+    end
 
     FollowingConnection = RunService.Heartbeat:Connect(function()
         if not target or not target.Character then return end
         local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-        local hum = getHumanoid()
-        if not targetHRP or not hum then return end
+        local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
+        if not targetHRP or not targetHum then return end
 
         if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
             FollowingConnection:Disconnect()
@@ -186,11 +188,15 @@ local function followPlayer(target)
             return
         end
 
-        local baseOffset = -targetHRP.CFrame.LookVector * 3 + Vector3.new(0, BotSettings.FollowHeight or 5, 0)
-        local targetPos = targetHRP.Position + baseOffset
-        local targetCFrame = CFrame.new(targetPos, targetPos + targetHRP.CFrame.LookVector)
+        local dir = targetHRP.CFrame.LookVector
+        local right = targetHRP.CFrame.RightVector
+        local pos = targetHRP.Position 
+            + dir * offset.Z 
+            + right * offset.X 
+            + Vector3.new(0, offset.Y, 0)
 
-        hrp.CFrame = hrp.CFrame:Lerp(targetCFrame, 0.25)
+        hum:MoveTo(pos)
+        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir) -- face same direction
     end)
 end
 
@@ -257,14 +263,21 @@ TextChatService.OnIncomingMessage = function(message)
         local query = msgText:sub(7)
         local target = findPlayerByName(query)
         if target then autoStrafe(target) end
-    elseif txt == "follow!" then
-        followPlayer(sender)
+    elseif txt:sub(1,7) == "follow!" then
+        local arg = msgText:sub(9):lower()
+        if arg == "left" then
+            followPlayer(sender, "left")
+        elseif arg == "right" then
+            followPlayer(sender, "right")
+        else
+            followPlayer(sender, "behind")
+        end
     elseif txt == "unfollow!" then
         unfollow()
     elseif txt == "chatlogs!" then
         ChatLogsVisible = not ChatLogsVisible
         Frame.Visible = ChatLogsVisible
     elseif txt == "cmds!" then
-        sendChatMessage("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow!, unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
+        sendChatMessage("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [behind/left/right], unfollow!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
     end
 end
