@@ -1,7 +1,6 @@
 --// Nervox Stand Bot
---// Made by kryvendev
+--// Made by KryvenDev
 
---// ========= LOADER GUI ========= \\--
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local TeleportService = game:GetService("TeleportService")
@@ -12,114 +11,21 @@ local LP = Players.LocalPlayer
 local OwnerId = getgenv().OwnerId or 0
 local BotSettings = getgenv().BotSettings or {}
 
--- Loader UI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NervoxLoader"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui")
-
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 250, 0, 120)
-Frame.Position = UDim2.new(0.5, -125, 0.1, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-Frame.BorderSizePixel = 0
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
-
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 25)
-Title.BackgroundTransparency = 1
-Title.Text = "Ready | Executed"
-Title.TextColor3 = Color3.fromRGB(0,255,0)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-
-local Avatar = Instance.new("ImageLabel", Frame)
-Avatar.Size = UDim2.new(0, 70, 0, 70)
-Avatar.Position = UDim2.new(0, 10, 0, 35)
-Avatar.BackgroundTransparency = 1
-local thumb, _ = Players:GetUserThumbnailAsync(OwnerId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-Avatar.Image = thumb
-
-local Owner = Players:GetPlayerByUserId(OwnerId)
-local Welcome = Instance.new("TextLabel", Frame)
-Welcome.Size = UDim2.new(1, -90, 0, 20)
-Welcome.Position = UDim2.new(0, 90, 0, 40)
-Welcome.BackgroundTransparency = 1
-Welcome.TextXAlignment = Enum.TextXAlignment.Left
-Welcome.TextColor3 = Color3.new(1,1,1)
-Welcome.Font = Enum.Font.SourceSansSemibold
-Welcome.TextSize = 18
-Welcome.Text = "Welcome: " .. (Owner and Owner.DisplayName or "Unknown")
-
-local ScriptName = Instance.new("TextLabel", Frame)
-ScriptName.Size = UDim2.new(1, -90, 0, 20)
-ScriptName.Position = UDim2.new(0, 90, 0, 65)
-ScriptName.BackgroundTransparency = 1
-ScriptName.TextXAlignment = Enum.TextXAlignment.Left
-ScriptName.TextColor3 = Color3.fromRGB(200,200,200)
-ScriptName.Font = Enum.Font.SourceSans
-ScriptName.TextSize = 16
-ScriptName.Text = "Nervox Stand Bot"
-
-local Credit = Instance.new("TextLabel", Frame)
-Credit.Size = UDim2.new(1, -10, 0, 20)
-Credit.Position = UDim2.new(0, 5, 1, -22)
-Credit.BackgroundTransparency = 1
-Credit.TextXAlignment = Enum.TextXAlignment.Right
-Credit.TextColor3 = Color3.fromRGB(180,180,180)
-Credit.Font = Enum.Font.SourceSansItalic
-Credit.TextSize = 14
-Credit.Text = "Made by kryvendev"
-
-task.delay(5, function() ScreenGui:Destroy() end)
-
---// ========= VARIABLES ========= \\--
+-- ========= VARIABLES ========= --
 local Whitelist = { [OwnerId] = true }
-local ChatLogsVisible = false
 local AutoConnection, HideConnection, DropConnection
+local ChatLogsVisible = false
 
--- ChatLogs GUI
-local ChatGui = Instance.new("ScreenGui")
-ChatGui.Name = "ChatLogGui"
-ChatGui.ResetOnSpawn = false
-ChatGui.Parent = game:GetService("CoreGui")
-
-local ChatFrame = Instance.new("Frame", ChatGui)
-ChatFrame.Size = UDim2.new(0.4, 0, 0.4, 0)
-ChatFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
-ChatFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-ChatFrame.BackgroundTransparency = 0.2
-ChatFrame.Active = true
-ChatFrame.Draggable = true
-ChatFrame.Visible = false
-Instance.new("UICorner", ChatFrame).CornerRadius = UDim.new(0, 8)
-
-local Scrolling = Instance.new("ScrollingFrame", ChatFrame)
-Scrolling.Size = UDim2.new(1, -10, 1, -10)
-Scrolling.Position = UDim2.new(0, 5, 0, 5)
-Scrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
-Scrolling.BackgroundTransparency = 1
-Scrolling.ScrollBarThickness = 6
-Scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
-local UIListLayout = Instance.new("UIListLayout", Scrolling)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 2)
-
---// ========= UTILITIES ========= \\--
-local function addChatLine(text, isOwner)
-    local lbl = Instance.new("TextLabel")
-    lbl.Parent = Scrolling
-    lbl.Size = UDim2.new(1, -5, 0, 20)
-    lbl.BackgroundTransparency = 1
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Font = Enum.Font.SourceSansSemibold
-    lbl.TextColor3 = isOwner and Color3.fromRGB(255, 215, 0) or Color3.new(1,1,1)
-    lbl.TextSize = 16
-    lbl.Text = text
-    task.wait()
-    Scrolling.CanvasPosition = Vector2.new(0, math.huge)
+-- ========= FPS LIMIT ========= --
+local function applyFPSCap()
+    local fps = BotSettings.MaxFps or 45
+    if setfpscap then
+        setfpscap(fps)
+    end
 end
+applyFPSCap()
 
+-- ========= UTILITIES ========= --
 local function sendChat(msg)
     local ch = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
     if ch then ch:SendAsync(msg) end
@@ -130,44 +36,14 @@ local function getHumanoid()
     return char:FindFirstChildOfClass("Humanoid")
 end
 
-local function disableAnimations(char)
-    if not BotSettings.DisableAnimations then return end
-    local animate = char:FindFirstChild("Animate")
-    if animate then animate:Destroy() end
-    for _, a in pairs(char:GetDescendants()) do
-        if a:IsA("Animator") then
-            for _, track in pairs(a:GetPlayingAnimationTracks()) do
-                track:Stop()
-            end
-        end
-    end
-end
-
-local function equipTool(name)
-    local hum = getHumanoid()
-    if hum then
-        local tool = LP.Backpack:FindFirstChild(name)
-        if tool then hum:EquipTool(tool) end
-    end
-end
-
-local function unequipAll()
-    local hum = getHumanoid()
-    if hum then hum:UnequipTools() end
-end
-
-local function summonTo(player)
-    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        (LP.Character or LP.CharacterAdded:Wait()):MoveTo(player.Character.HumanoidRootPart.Position)
-    end
-end
-
-local function rejoin()
-    TeleportService:Teleport(game.PlaceId, LP)
+local function stopAll()
+    if AutoConnection then AutoConnection:Disconnect() AutoConnection = nil end
+    if HideConnection then HideConnection:Disconnect() HideConnection = nil end
+    if DropConnection then DropConnection:Disconnect() DropConnection = nil end
 end
 
 local function findPlayerByName(query)
-    query = query:lower():gsub("^%s+", ""):gsub("%s+$", "")
+    query = query:lower()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr.Name:lower():find(query, 1, true) or (plr.DisplayName and plr.DisplayName:lower():find(query, 1, true)) then
             return plr
@@ -175,162 +51,92 @@ local function findPlayerByName(query)
     end
 end
 
-local function forceResetAndReturn()
-    local hum = getHumanoid()
-    if hum then hum.Health = 0 end
-    LP.CharacterAdded:Wait()
-    local owner = Players:GetPlayerByUserId(OwnerId)
-    if owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = (LP.Character or LP.CharacterAdded:Wait()):WaitForChild("HumanoidRootPart")
-        hrp.CFrame = owner.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
-    end
-end
-
--- Stop everything
-local function stopAll()
-    if AutoConnection then AutoConnection:Disconnect() AutoConnection = nil end
-    if HideConnection then HideConnection:Disconnect() HideConnection = nil end
-    if DropConnection then DropConnection:Disconnect() DropConnection = nil end
-end
-
--- Auto strafe
-local function autoStrafe(target)
-    stopAll()
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    disableAnimations(char)
-    local startTime = tick()
-
-    AutoConnection = RunService.Heartbeat:Connect(function()
-        if not target or not target.Parent then stopAll() return end
-        local targetChar = target.Character
-        local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
-        local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-        if not targetChar or not targetHRP or not targetHum then return end
-        if targetHum.Health <= 0 then stopAll() return end
-        if tick() - startTime >= BotSettings.StrafeDuration then stopAll() return end
-
-        if hum.Health / hum.MaxHealth * 100 <= BotSettings.LowHealthThreshold then
-            stopAll()
-            forceResetAndReturn()
-            return
+-- ========= ANTI-FLING ========= --
+local function applyAntiFling()
+    RunService.Heartbeat:Connect(function()
+        local char = LP.Character
+        if not char then return end
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Velocity = Vector3.new(0, part.Velocity.Y, 0)
+                part.RotVelocity = Vector3.new(0, 0, 0)
+            end
         end
-
-        local angle = tick() * BotSettings.StrafeSpeed
-        local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * BotSettings.StrafeDistance
-        local targetCFrame = CFrame.new(targetHRP.Position + offset, targetHRP.Position)
-        hrp.CFrame = hrp.CFrame:Lerp(targetCFrame, 0.25)
-        hum.Jump = true
     end)
 end
+applyAntiFling()
 
--- Hide system
-local function hideBot()
-    stopAll()
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-
-    HideConnection = RunService.Heartbeat:Connect(function()
-        hrp.CFrame = CFrame.new(
-            math.random(-50, 50),
-            30 + math.random(0, 10),
-            math.random(-50, 50)
-        )
-        task.wait(0.1)
-    end)
-end
-
--- Drop money once
+-- ========= CASH SYSTEM ========= --
 local function dropCash(amount)
-    stopAll()
-    local amt = math.clamp(tonumber(amount) or 0, 1, 15000)
-    local args = { "DropMoney", tostring(amt) }
-    ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
+    amount = tonumber(amount)
+    if not amount then return end
+    if amount > 15000 then amount = 15000 end
+    ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
 end
 
--- Auto drop system
 local function autoDrop(amount)
     stopAll()
-    local amt = math.clamp(tonumber(amount) or 0, 1, 15000)
-    local args = { "DropMoney", tostring(amt) }
-    sendChat("Autodropping " .. amt .. " | say stop! to stop")
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then amount = 15000 end
+    if amount > 15000 then amount = 15000 end
+    sendChat("Autodropping " .. tostring(amount) .. " | say stop! or s to stop!")
     DropConnection = RunService.Heartbeat:Connect(function()
-        ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
+        ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
         task.wait(0.5)
     end)
 end
 
---// ========= CHAT LISTENER ========= \\--
+-- ========= CHAT LISTENER ========= --
 TextChatService.OnIncomingMessage = function(message)
     local src = message.TextSource
     local sender = src and Players:GetPlayerByUserId(src.UserId)
     local msgText = message.Text or ""
-    if sender then addChatLine(sender.Name .. ": " .. msgText, src.UserId == OwnerId)
-    else addChatLine("[System]: " .. msgText, false) end
     if not src then return end
 
     local isOwner = src.UserId == OwnerId
     local allowed = Whitelist[src.UserId]
     local txt = msgText:lower()
 
-    -- Owner-only commands
+    -- Owner-only
     if isOwner and txt:sub(1,10) == "whitelist!" then
-        local query = msgText:sub(11):gsub("^%s+", "")
+        local query = msgText:sub(11)
         local target = findPlayerByName(query)
-        if target then Whitelist[target.UserId] = true sendChat("Whitelisted " .. target.Name)
-        else sendChat("Invalid username") end
+        if target then
+            Whitelist[target.UserId] = true
+            sendChat("Whitelisted " .. target.Name)
+        else
+            sendChat("Invalid username")
+        end
         return
     elseif isOwner and txt:sub(1,12) == "unwhitelist!" then
-        local query = msgText:sub(13):gsub("^%s+", "")
+        local query = msgText:sub(13)
         local target = findPlayerByName(query)
         if target and target.UserId ~= OwnerId then
-            Whitelist[target.UserId] = nil sendChat("Unwhitelisted " .. target.Name)
-        else sendChat("Invalid username") end
-        return
-    elseif isOwner and txt == "checkwl!" then
-        local names = {}
-        for uid, _ in pairs(Whitelist) do
-            local plr = Players:GetPlayerByUserId(uid)
-            table.insert(names, plr and plr.Name or "UserId:" .. tostring(uid))
+            Whitelist[target.UserId] = nil
+            sendChat("Unwhitelisted " .. target.Name)
+        else
+            sendChat("Invalid username")
         end
-        sendChat("Whitelisted: " .. table.concat(names, ", "))
         return
-    elseif isOwner and txt == "rj!" then
-        rejoin() return
     end
 
     if not allowed then return end
 
     -- Normal commands
-    if txt == "wallet!" then
-        equipTool("[Wallet]")
-    elseif txt == "unwallet!" then
-        unequipAll()
-    elseif txt == "summon!" or txt == "s" then
-        summonTo(sender)
-    elseif txt:sub(1,5) == "auto!" then
-        local query = msgText:sub(7)
-        local target = findPlayerByName(query)
-        if target then autoStrafe(target) end
-    elseif txt == "chatlogs!" then
-        ChatLogsVisible = not ChatLogsVisible
-        ChatFrame.Visible = ChatLogsVisible
+    if txt:sub(1,9) == "dropcash!" then
+        local amount = msgText:sub(11)
+        dropCash(amount)
+    elseif txt:sub(1,9) == "autodrop!" then
+        local amount = msgText:sub(11)
+        autoDrop(amount)
+    elseif txt == "stop!" or txt == "s" then
+        stopAll()
+        sendChat("Stopped all actions.")
     elseif txt == "cmds!" then
-        sendChat("Commands (1/3): wallet!, unwallet!, summon!/s, auto! <user>, stop!")
+        sendChat("Commands (1/3): wallet!, unwallet!, summon!/s, auto! <user>, stop!/s")
         sendChat("Commands (2/3): chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
         sendChat("Commands (3/3): dropcash! <amount>, autodrop! <amount>, hide!, creds!")
-    elseif txt:sub(1,9) == "dropcash!" then
-        local amt = msgText:sub(10)
-        dropCash(amt)
-    elseif txt:sub(1,9) == "autodrop!" then
-        local amt = msgText:sub(10)
-        autoDrop(amt)
-    elseif txt == "hide!" then
-        hideBot()
     elseif txt == "creds!" then
         sendChat("Script made by KryvenDev")
-    elseif txt == "stop!" then
-        stopAll()
     end
 end
