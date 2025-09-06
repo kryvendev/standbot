@@ -76,7 +76,7 @@ task.delay(5, function() ScreenGui:Destroy() end)
 --// ========= VARIABLES ========= \\--
 local Whitelist = { [OwnerId] = true }
 local ChatLogsVisible = false
-local FollowingConnection, AutoConnection, HideConnection, DropConnection
+local AutoConnection, HideConnection, DropConnection
 
 -- ChatLogs GUI
 local ChatGui = Instance.new("ScreenGui")
@@ -189,7 +189,6 @@ end
 -- Stop everything
 local function stopAll()
     if AutoConnection then AutoConnection:Disconnect() AutoConnection = nil end
-    if FollowingConnection then FollowingConnection:Disconnect() FollowingConnection = nil end
     if HideConnection then HideConnection:Disconnect() HideConnection = nil end
     if DropConnection then DropConnection:Disconnect() DropConnection = nil end
 end
@@ -226,38 +225,6 @@ local function autoStrafe(target)
     end)
 end
 
--- Follow system (walks 5 studs behind/left/right)
-local function followPlayer(target, mode)
-    stopAll()
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local hum = getHumanoid()
-    disableAnimations(char)
-
-    FollowingConnection = RunService.Heartbeat:Connect(function()
-        if not target or not target.Character then return end
-        local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-        local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
-        if not targetHRP or not targetHum then return end
-        if targetHum.Health <= 0 then return end
-
-        local dir = targetHRP.CFrame.LookVector
-        local right = targetHRP.CFrame.RightVector
-        local goalPos
-
-        if mode == "left" then
-            goalPos = targetHRP.Position - right * 5
-        elseif mode == "right" then
-            goalPos = targetHRP.Position + right * 5
-        else
-            goalPos = targetHRP.Position - dir * 5
-        end
-
-        hum:MoveTo(goalPos)
-        hrp.CFrame = CFrame.new(hrp.Position, targetHRP.Position)
-    end)
-end
-
 -- Hide system
 local function hideBot()
     stopAll()
@@ -274,23 +241,22 @@ local function hideBot()
     end)
 end
 
--- Drop cash once
+-- Drop money once
 local function dropCash(amount)
-    amount = tonumber(amount)
-    if not amount then return end
-    if amount > 15000 then amount = 15000 end
-    ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
+    stopAll()
+    local amt = math.clamp(tonumber(amount) or 0, 1, 15000)
+    local args = { "DropMoney", tostring(amt) }
+    ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
 end
 
--- Auto drop loop
+-- Auto drop system
 local function autoDrop(amount)
     stopAll()
-    amount = tonumber(amount)
-    if not amount or amount <= 0 then amount = 15000 end
-    if amount > 15000 then amount = 15000 end
-    sendChat("Autodropping " .. tostring(amount) .. " | say stop! to stop the dropping!")
+    local amt = math.clamp(tonumber(amount) or 0, 1, 15000)
+    local args = { "DropMoney", tostring(amt) }
+    sendChat("Autodropping " .. amt .. " | say stop! to stop")
     DropConnection = RunService.Heartbeat:Connect(function()
-        ReplicatedStorage:WaitForChild("MainEvent"):FireServer("DropMoney", tostring(amount))
+        ReplicatedStorage:WaitForChild("MainEvent"):FireServer(unpack(args))
         task.wait(0.5)
     end)
 end
@@ -347,25 +313,24 @@ TextChatService.OnIncomingMessage = function(message)
         local query = msgText:sub(7)
         local target = findPlayerByName(query)
         if target then autoStrafe(target) end
-    elseif txt:sub(1,7) == "follow!" then
-        local arg = msgText:sub(9):lower()
-        if arg == "left" then followPlayer(sender, "left")
-        elseif arg == "right" then followPlayer(sender, "right")
-        else followPlayer(sender, "back") end
-    elseif txt == "unfollow!" or txt == "stop!" then
-        stopAll()
     elseif txt == "chatlogs!" then
         ChatLogsVisible = not ChatLogsVisible
         ChatFrame.Visible = ChatLogsVisible
     elseif txt == "cmds!" then
-        sendChat("Commands: wallet!, unwallet!, summon!/s, auto! <user>, follow! [back/left/right], unfollow!/stop!, chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!, dropcash! <amount>, autodrop! <amount>, hide!")
+        sendChat("Commands (1/3): wallet!, unwallet!, summon!/s, auto! <user>, stop!")
+        sendChat("Commands (2/3): chatlogs!, rj! (owner), whitelist!, unwhitelist!, checkwl!")
+        sendChat("Commands (3/3): dropcash! <amount>, autodrop! <amount>, hide!, creds!")
     elseif txt:sub(1,9) == "dropcash!" then
-        local amount = msgText:sub(11)
-        dropCash(amount)
+        local amt = msgText:sub(10)
+        dropCash(amt)
     elseif txt:sub(1,9) == "autodrop!" then
-        local amount = msgText:sub(11)
-        autoDrop(amount)
+        local amt = msgText:sub(10)
+        autoDrop(amt)
     elseif txt == "hide!" then
         hideBot()
+    elseif txt == "creds!" then
+        sendChat("Script made by KryvenDev")
+    elseif txt == "stop!" then
+        stopAll()
     end
 end
